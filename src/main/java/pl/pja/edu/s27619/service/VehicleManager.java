@@ -41,9 +41,13 @@ public class VehicleManager {
         }
     }
 
-
+    /**
+     * Method deletes the vehicle from registered vehicles using given unique ID if exists, otherwise trows exception.
+     *
+     * @param uniqueId given id of vehicle should be deleted
+     */
     public static void deleteVehicle(String uniqueId) {
-        String givenId = uniqueId.toUpperCase();
+        String givenId = uniqueId.toUpperCase(); // to avoid incorrect register of id entered from the user
 
         if (!givenId.isBlank() && !registeredVehicles.containsKey(givenId)) {
             throw new CheckDataException("No such id in registered vehicles");
@@ -53,8 +57,13 @@ public class VehicleManager {
 
     }
 
+    /**
+     * Method finds the vehicle from registered vehicles using given unique ID if exists, otherwise trows exception.
+     *
+     * @param id given id of vehicle should be returned
+     */
     public static Vehicle getVehicleById(String id) {
-        String givenId = id.toUpperCase();
+        String givenId = id.toUpperCase(); // to avoid incorrect register of id entered from the user
 
         if (!givenId.isBlank() && !registeredVehicles.containsKey(givenId)) {
             throw new CheckDataException("No such id in registered vehicles");
