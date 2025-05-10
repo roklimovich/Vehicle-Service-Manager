@@ -72,7 +72,6 @@ public class Main {
         System.out.println("Get loyalty point after adding to the user with id: " + roman.getId()
                 + "; Loyalty points: " + roman.getLoyaltyPoints() + "\n");
 
-
         ServiceRecord renaultServiceRecord = new ServiceRecord(roman,
                 LocalDate.of(2025, 5, 1), "Engine repair", 9990,
                 renaultDuster);
@@ -82,7 +81,6 @@ public class Main {
         ServiceRecord bmwX6MServiceRecord = new ServiceRecord(ksenia,
                 LocalDate.of(2025, 3, 2), "Engine repair", 7777,
                 bmwX6M);
-
 
         System.out.println("Loyalty points after adding service records, which is adding automatically: "
                 + roman.getLoyaltyPoints() + "\n");
