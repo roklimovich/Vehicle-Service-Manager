@@ -201,7 +201,7 @@ public class ClientManager implements Manager, Validation {
     /**
      * Method checks if the client is already in registered VIP clients or not.
      *
-     * @param id String variable which contains id about the Client who should be checked
+     * @param id String variable which contains info about the Client id who should be checked
      * @return true if already in, otherwise false
      */
     public static boolean getInfoAboutVIPClients(String id) {
@@ -210,11 +210,13 @@ public class ClientManager implements Manager, Validation {
         return registeredVIPClients.containsKey(givenId);
     }
 
+    /**
+     * Method checks if the client is basic or not.
+     *
+     * @param client contains information about the Client
+     * @return true if basic, otherwise false
+     */
     public boolean isBasic(Client client) {
-        if (registeredVIPClients.containsKey(client.getId())) {
-            return false;
-        }
-
-        return true;
+        return !registeredVIPClients.containsKey(client.getId().toUpperCase());
     }
 }
