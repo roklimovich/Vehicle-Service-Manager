@@ -3,121 +3,115 @@ package pl.pja.edu.s27619;
 import pl.pja.edu.s27619.administration.Supervisor;
 import pl.pja.edu.s27619.clients.BasicClient;
 import pl.pja.edu.s27619.clients.Client;
-import pl.pja.edu.s27619.service.ClientManager;
-import pl.pja.edu.s27619.service.interfaces.Manager;
-import pl.pja.edu.s27619.service.interfaces.Validation;
+import pl.pja.edu.s27619.exceptions.CheckDataException;
+import pl.pja.edu.s27619.service.mechanic.Freelancer;
+import pl.pja.edu.s27619.service.mechanic.Mechanic;
+import pl.pja.edu.s27619.service.VehicleManager;
+import pl.pja.edu.s27619.service.mechanic.ServiceCenter;
 import pl.pja.edu.s27619.vehicle.Car;
 import pl.pja.edu.s27619.vehicle.VehicleType;
 import pl.pja.edu.s27619.vehicle.component.EmissionLevel;
 import pl.pja.edu.s27619.vehicle.component.Engine;
 import pl.pja.edu.s27619.vehicle.component.EngineCategory;
 import pl.pja.edu.s27619.vehicle.component.EngineType;
+import pl.pja.edu.s27619.vehicle.condition.VehicleCertificate;
 import pl.pja.edu.s27619.vehicle.repair.ServiceRecord;
+import pl.pja.edu.s27619.warehouse.Part;
+import pl.pja.edu.s27619.warehouse.PartOrder;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 public class Main {
     public static void main(String[] args) {
-        Manager manager = new ClientManager();
-        Validation validationManager = new ClientManager();
-        // example of overlapping
-        Supervisor supervisor = new Supervisor("Roman", "Klimovich", "test@pjwstk.edu.pl");
-        // example of usage methods which are implemented in interfaces
-        System.out.println("Calculated budget per month: " + supervisor.calculateBudgetPerMonth());;
-        supervisor.displayInfo();
-        // could be uncommented, but by the logic it breaks the application
-        //supervisor.breakTheSystem();
+        Engine engine = new Engine(EngineType.DIESEL, EmissionLevel.EURO_6,
+                EngineCategory.SPORT, 760);
+        engine.setEmissionLevel(EmissionLevel.EURO_5); // attributes
+        engine.setEngineCategory(EngineCategory.ECONOMY); // attributes
+        engine.setPower(240); // attributes
 
-        // objects with abstract and disjoint class client
+        Car bmwM550i = new Car(VehicleType.CAR, "BMW", "M550i", engine, 5);
+        Car bmwX6M = new Car(VehicleType.CAR, "BMW", "X6M", engine, 5);
+        Car renaultDuster = new Car(VehicleType.CAR, "Renault", "Duster", engine,
+                5);
+
+        // unique constraints
+        VehicleCertificate vehicleCertificate = new VehicleCertificate(bmwM550i);
+        System.out.println(VehicleManager.getCertificateIDs());
+        VehicleManager.registerCertificate(vehicleCertificate);
+
+
         Client roman = new BasicClient("Roman", "Klimovich", "+48000000",
                 "test@gmail.com");
-        Client ksenia = new BasicClient("Ksenia", "Klimovich", "+375000000",
-                "test1@gmail.com");
-
-        // example of usage multi-aspect based in EmissionLevel, EngineCategory, EngineType
-        Engine bmwX6Engine = new Engine(EngineType.DIESEL, EmissionLevel.EURO_6,
-                EngineCategory.SPORT, 625);
-        Car bmwX6M = new Car(VehicleType.CAR, "BMW", "X6M", bmwX6Engine,5);
-        ClientManager.addVehicleToClient(ksenia, bmwX6M);
-
-
-        Engine bmwM550iEngine = new Engine(EngineType.PETROL, EmissionLevel.EURO_6,
-                EngineCategory.SPORT,530);
-        Car bmwM550i = new Car(VehicleType.CAR, "BMW", "M550i", bmwM550iEngine, 5);
-        ClientManager.addVehicleToClient(roman, bmwM550i);
-
-        Engine reanultDusterEngine = new Engine(EngineType.DIESEL, EmissionLevel.EURO_4,
-                EngineCategory.ECONOMY, 190);
-        Car renaultDuster = new Car(VehicleType.CAR, "Renault", "Duster", reanultDusterEngine,
-                5);
-        ClientManager.addVehicleToClient(roman, renaultDuster);
-
-        Engine audiEngine = new Engine(EngineType.DIESEL, EmissionLevel.EURO_6,
-                EngineCategory.STANDARD, 450);
-        Car audi = new Car(VehicleType.CAR, "Audi", "RS7", audiEngine, 5);
-        ClientManager.addVehicleToClient(ksenia, audi);
-
-        ClientManager.showVehiclesForGivenClient(roman);
-        ClientManager.showVehiclesForGivenClient(ksenia);
-
-        ClientManager.removeVehicleBasedOnClient(ksenia, audi);
-
-        System.out.println("Get vehicles after removing for client: ");
-        ClientManager.showVehiclesForGivenClient(ksenia);
-
-        // example of multi-inheritance
-        System.out.println("Checking if client is Basic: " + validationManager.isBasic(roman) + "\n");
-
-        System.out.println("Get loyalty point before adding manually to the user with id: " + roman.getId()
-                + "; Loyalty points: " + roman.getLoyaltyPoints());
-
-        roman.setLoyaltyPoints(14);
-
-        System.out.println("Get loyalty point after adding to the user with id: " + roman.getId()
-                + "; Loyalty points: " + roman.getLoyaltyPoints() + "\n");
-
-        ServiceRecord renaultServiceRecord = new ServiceRecord(roman,
-                LocalDate.of(2025, 5, 1), "Engine repair", 9990,
-                renaultDuster);
-        ServiceRecord renaultServiceRecord1 = new ServiceRecord(roman,
-                LocalDate.of(2025, 3, 2), "Oil replacement", 2000,
-                renaultDuster);
-        ServiceRecord bmwX6MServiceRecord = new ServiceRecord(ksenia,
-                LocalDate.of(2025, 3, 2), "Engine repair", 7777,
+        ServiceRecord bmwX6MServiceRecord = new ServiceRecord(roman,
+                LocalDate.of(2024, 5, 6), "Engine repair", 9999,
                 bmwX6M);
-
-        System.out.println("Loyalty points after adding service records, which is adding automatically: "
-                + roman.getLoyaltyPoints() + "\n");
-
-        // polymorphic method call getDiscount()
-        System.out.println("Get discount for client: " + roman.getId() + " " + roman.getDiscount() + "%.");
-        System.out.println("Get discount for client: " + ksenia.getId() + " " + ksenia.getDiscount() + "%." + "\n");
-
-        System.out.println("Service history for given client with ID: " + roman.getId()
-                + ", vehicle with ID: " + renaultDuster.getUniqueId() + " " + renaultDuster.getName()
-                + " " + renaultDuster.getModel() + "\n");
-        ClientManager.getListOfServiceRecordsForGivenClientAndVehicle(roman, renaultDuster);
-
-        // dynamically change the type of the client (dynamic inheritance)
-        ClientManager.promoteToVIP(roman.getId());
-
-        System.out.println("Print details about client after promoting to VIP:");
-        ClientManager.printDetailsAboutAllClients();
-
-        System.out.println("\n" + "Get discount for basic client: " + ksenia.getId() + " "
-                + ksenia.getDiscountInPercentage() + "%.");
-        System.out.println("Get discount after promote client to VIP: " + roman.getId() + " "
-                + roman.getDiscountInPercentage() + "%." + "\n");
-
-
         ServiceRecord bmwM550iServiceRecord = new ServiceRecord(roman,
-                LocalDate.of(2025, 5, 3), "Head-up display changed",
-                9990, bmwM550i);
+                LocalDate.of(2025, 5, 13), "Head-up display changed",
+                7777, bmwM550i);
+        ServiceRecord renaultDusterServiceRecord = new ServiceRecord(roman,
+                LocalDate.of(2023, 4, 14), "Brake Service",
+                450.0, renaultDuster);
 
-        System.out.println("Show all service records for promoted client: " + roman.getId() + " " + roman.getName());
-        // example of multi-inheritance
-        manager.getListOfAllServiceRecordsByGivenClient(roman);
-        // example of multi-inheritance
-        System.out.println("Checking if client is Basic: " + validationManager.isBasic(roman) + "\n");
+        System.out.println(bmwX6MServiceRecord);
+        System.out.println(bmwM550iServiceRecord);
+        System.out.println(renaultDusterServiceRecord);
+
+
+        Mechanic mechanic = new Mechanic("Piotr", "Slomczynski", "test@pjwstk.edu.pl");
+        System.out.println(mechanic);
+
+        // subset constraint
+        //mechanic.addPerformedServiceRecord(bmwX6MServiceRecord); //could be uncommented, but it throws exception
+        mechanic.addCertifiedServiceRecord(bmwX6MServiceRecord);
+        mechanic.addCertifiedServiceRecord(bmwM550iServiceRecord);
+        mechanic.addPerformedServiceRecord(bmwX6MServiceRecord);
+
+        System.out.println(mechanic.getCertifiedServiceRecords());
+        System.out.println(mechanic.getPerformedServiceRecords());
+
+        Supervisor supervisor = new Supervisor("Ksenia", "Klimovich", "test@gmail.com");
+
+        /* ordered constraint. Supervisor generate schedule for the Mechanic, automatically ordered by the time from
+         * the morning to the evening
+         */
+        supervisor.assignScheduleToMechanic(LocalDateTime.of(LocalDate.now(),
+                LocalTime.of(11, 0)), mechanic, bmwX6MServiceRecord);
+        supervisor.assignScheduleToMechanic(LocalDateTime.of(LocalDate.now(),
+                LocalTime.of(9, 0)), mechanic, bmwM550iServiceRecord);
+        supervisor.assignScheduleToMechanic(LocalDateTime.of(LocalDate.now(),
+                LocalTime.of(10, 0)), mechanic, renaultDusterServiceRecord);
+
+        System.out.println(mechanic.getTaskList());
+
+        // custom constraint
+        bmwX6MServiceRecord.setCost(10000);
+
+        // bag constraint
+        Part oilFilter = new Part("Oil filter");
+        supervisor.orderPart(oilFilter, 1, 55);
+        supervisor.orderPart(oilFilter, 5, 95);
+        System.out.println("Part orders for " + supervisor.getName() + " " + supervisor.getEmail() + ": ");
+        for (PartOrder order : supervisor.getPartOrders()) {
+            System.out.println(order);
+        }
+
+        // xor constraint
+        ServiceCenter serviceCenter = new ServiceCenter("MAJORKA PARTS");
+        mechanic.assignToServiceCenter(serviceCenter);
+        mechanic.printAssignment();
+
+        try {
+            mechanic.assignAsFreelancer(new Freelancer("Bialystok"));
+        } catch (CheckDataException e) {
+            System.out.println("XOR violation " + e.getMessage());
+        }
+
+        Mechanic mechanic1 = new Mechanic("Jon", "Smith", "jon.smith@gmail.com");
+        mechanic1.assignAsFreelancer(new Freelancer("Krakow"));
+        mechanic1.printAssignment();
+
+        //mechanic1.assignToServiceCenter(serviceCenter); //could be uncommented, but it throws exception, just to test
     }
 }

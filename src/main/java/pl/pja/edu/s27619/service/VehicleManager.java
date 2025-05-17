@@ -2,15 +2,17 @@ package pl.pja.edu.s27619.service;
 
 import pl.pja.edu.s27619.exceptions.CheckDataException;
 import pl.pja.edu.s27619.vehicle.*;
+import pl.pja.edu.s27619.vehicle.condition.VehicleCertificate;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 public class VehicleManager {
     private static final String FILE_NAME = "./Vehicle.ser";
     private static HashMap<String, Vehicle> registeredVehicles = new HashMap<>();
+    private static Set<String> certificateIDs = new HashSet<>();
+
+
     public static HashMap<String, Vehicle> getRegisteredVehicles() {
         return registeredVehicles;
     }
@@ -72,4 +74,20 @@ public class VehicleManager {
         return registeredVehicles.get(givenId);
     }
 
+    /**
+     * Method register certificate in the base of all given certificates in the system, avoid duplicates. If just one
+     * certificate will be founded with the same ID, which should be added to the system, system will provide for the
+     * user message with declining to do this action.
+     *
+     * @param vehicleCertificate variable which contains certificate which should be registered
+     */
+    public static void registerCertificate(VehicleCertificate vehicleCertificate) {
+        if (!certificateIDs.add(vehicleCertificate.getCertificateId())) {
+            System.out.println("Duplicated certificate id: " + vehicleCertificate.getCertificateId());
+        }
+    }
+
+    public static Set<String> getCertificateIDs() {
+        return certificateIDs;
+    }
 }

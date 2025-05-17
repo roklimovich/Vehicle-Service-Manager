@@ -5,18 +5,20 @@ import pl.pja.edu.s27619.clients.VIPClient;
 import pl.pja.edu.s27619.exceptions.CheckDataException;
 import pl.pja.edu.s27619.exceptions.ClientNotFoundException;
 import pl.pja.edu.s27619.service.ClientManager;
-import pl.pja.edu.s27619.vehicle.Vehicle;
+import pl.pja.edu.s27619.vehicle.*;
 
 import java.io.Serializable;
 import java.time.LocalDate;
 
 public class ServiceRecord implements Serializable {
+    private String uniqueId;
     private Client client;
     private LocalDate serviceDate;
     private String description;
     private double cost;
     private double costWithDiscount;
     private Vehicle vehicle;
+    private ServiceRecordStatus serviceRecordStatus;
 
     /**
      * Constructor to create a ServiceRecord and associate it directly with a Vehicle. This constructor shows to us
@@ -29,16 +31,25 @@ public class ServiceRecord implements Serializable {
      * @param vehicle     vehicle to which this service record connected
      */
     public ServiceRecord(Client client, LocalDate serviceDate, String description, double cost, Vehicle vehicle) {
+        uniqueId = generateUniqueId();
         setClient(client);
         setServiceDate(serviceDate);
         setDescription(description);
+        setVehicleToServiceRecord(vehicle);
         setCost(cost);
-        if (vehicle == null) {
-            throw new CheckDataException("Vehicle cannot be null for composition");
-        }
         setCostWithDiscount(cost);
-        this.vehicle = vehicle;
         vehicle.addServiceRecord(this);
+        serviceRecordStatus = ServiceRecordStatus.UNDONE;
+    }
+
+    /**
+     * Method generates the unique id to the service record using pattern: "SERVICE_RECORD-x", where x - number
+     * which generated randomly in range [1, 99999].
+     *
+     * @return String which contains unique ID for service record
+     */
+    private String generateUniqueId() {
+        return "SERVICE_RECORD-" + (int) (Math.random() * 99999 + 1);
     }
 
     /**
@@ -70,14 +81,25 @@ public class ServiceRecord implements Serializable {
     }
 
     /**
-     * Methods set cost to the service record and check if it negative throw exception, otherwise set cost ot service
-     * record.
+     * Methods set cost to the service record and check if it negative throw exception. Also, method checks the
+     * possible cost value, which can be assigned for service record for each type of the vehicle. If it is not satisfy
+     * all criteria, system throws exception, otherwise set the cost.
      *
      * @param cost contains information about amount of money which was spent for service
      */
     public void setCost(double cost) {
         if (cost < 0) {
             throw new CheckDataException("Service repair cost could not be negative");
+        }
+
+        if (vehicle.getVehicleType() == VehicleType.CAR && cost > 10_000) {
+            throw new CheckDataException("Cost for service Car could not be greater than 10_000");
+        } else if (vehicle.getVehicleType() == VehicleType.AIRPLANE && cost > 150_000) {
+            throw new CheckDataException("Cost for service Airplane could not be greater than 150_000");
+        } else if (vehicle.getVehicleType() == VehicleType.SHIP && cost > 12_000) {
+            throw new CheckDataException("Cost for service Ship could not be greater than 12_000");
+        } else if (vehicle.getVehicleType() == VehicleType.TRAIN && cost > 15_000) {
+            throw new CheckDataException("Cost for service Train could not be greater than 15_000");
         }
 
         this.cost = cost;
@@ -147,6 +169,36 @@ public class ServiceRecord implements Serializable {
         this.costWithDiscount = cost - (cost * (client.getDiscount() / 100));
     }
 
+    /**
+     * Method sets the service record status when it is done, by the default system sets that status is UNDONE.
+     *
+     * @param serviceRecordStatus enum which contains status of the completion the service record
+     */
+    public void setServiceRecordStatus(ServiceRecordStatus serviceRecordStatus) {
+        if (serviceRecordStatus == null) {
+            throw new CheckDataException("Service record status could not be null");
+        }
+
+        this.serviceRecordStatus = serviceRecordStatus;
+    }
+
+    /**
+     * Method sets the vehicle to service record based on rules of the composition.
+     *
+     * @param vehicle variable which contains information of vehicle which should be connected
+     */
+    public void setVehicleToServiceRecord(Vehicle vehicle) {
+        if (vehicle == null) {
+            throw new CheckDataException("Vehicle cannot be null for composition");
+        }
+
+        this.vehicle = vehicle;
+    }
+
+    public String getUniqueId() {
+        return uniqueId;
+    }
+
     public Client getClient() {
         return client;
     }
@@ -167,15 +219,21 @@ public class ServiceRecord implements Serializable {
         return cost;
     }
 
+    public ServiceRecordStatus getServiceRecordStatus() {
+        return serviceRecordStatus;
+    }
+
     @Override
     public String toString() {
         return "ServiceRecord{" +
-                "client=" + client.getId() + ", clientType=" + client.getClass() +
+                "serviceRecordId=" + uniqueId +
+                ", client=" + client.getId() + ", clientType=" + client.getClass() +
                 ", serviceDate=" + serviceDate +
                 ", description='" + description + '\'' +
                 ", cost=" + cost + '\'' +
                 ", costWithDiscount='" + costWithDiscount + '\'' +
                 ", vehicle=" + vehicle.getName() + " " + vehicle.getModel() + " " + " address in memory: " + vehicle +
+                ", serviceRecordStatus='" + serviceRecordStatus + '\'' +
                 '}';
     }
 }

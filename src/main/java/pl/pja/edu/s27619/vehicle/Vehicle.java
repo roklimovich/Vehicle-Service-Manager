@@ -3,6 +3,7 @@ package pl.pja.edu.s27619.vehicle;
 import pl.pja.edu.s27619.exceptions.CheckDataException;
 import pl.pja.edu.s27619.service.VehicleManager;
 import pl.pja.edu.s27619.vehicle.component.Engine;
+import pl.pja.edu.s27619.vehicle.condition.VehicleCertificate;
 import pl.pja.edu.s27619.vehicle.repair.ServiceRecord;
 
 import java.io.Serializable;
@@ -19,6 +20,7 @@ public class Vehicle implements Serializable {
     private String color;
     private Engine engine;
     private Map<LocalDate, ServiceRecord> serviceRecords = new HashMap<>();
+    private List<VehicleCertificate> vehicleCertificates = new ArrayList<>();
 
     /**
      * Constructor to initialize Vehicle object without a color.
@@ -229,6 +231,28 @@ public class Vehicle implements Serializable {
         this.engine = engine;
     }
 
+    /**
+     * Method sets the certificate to the vehicle. Certificate could not be duplicated, and should be Unique.
+     *
+     * @param certificate variable which contains information about the given ID
+     */
+    public void addCertificate(VehicleCertificate certificate) {
+        if (!vehicleCertificates.contains(certificate)) {
+            vehicleCertificates.add(certificate);
+            certificate.setVehicle(this);
+        }
+    }
+
+    /**
+     * Method removes the certificate from the vehicle.
+     *
+     * @param certificate variable which contains certificate which should be deleted
+     */
+    public void removeCertificate(VehicleCertificate certificate) {
+        if (vehicleCertificates.remove(certificate)) {
+            certificate.removeVehicle();
+        }
+    }
 
     public Engine getEngine() {
         return engine;
