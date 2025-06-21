@@ -2,7 +2,6 @@ package pl.pja.edu.s27619.clients;
 
 import jakarta.persistence.*;
 import pl.pja.edu.s27619.exceptions.CheckDataException;
-import pl.pja.edu.s27619.service.ClientManager;
 import pl.pja.edu.s27619.vehicle.Vehicle;
 
 import java.util.LinkedList;
@@ -14,8 +13,9 @@ import java.util.List;
 @DiscriminatorColumn(name = "client_type")
 public abstract class Client {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "client_id", nullable = false, updatable = false)
-    private String id;
+    private Long id;
 
     @Column(name = "name", length = 60, nullable = false)
     private String name;
@@ -35,14 +35,10 @@ public abstract class Client {
     @Column(name = "discount", nullable = false)
     private double discount;
 
-    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Vehicle> clientVehicles;
 
-    @Transient
-    private static int counter = 0;
-
-    // for hibernate purpose
-    public Client() {}
+    public Client() {} // for hibernate purpose
 
     /**
      * Constructor to initialize Client object. Constructor automatically add client to the list of the registered
@@ -54,7 +50,6 @@ public abstract class Client {
      * @param email       String variable which contains information about the client email
      */
     public Client(String name, String surname, String phoneNumber, String email) {
-        id = generateUniqueId();
         setName(name);
         setSurname(surname);
         setPhoneNumber(phoneNumber);
@@ -62,9 +57,6 @@ public abstract class Client {
         loyaltyPoints = 0;
         discount = getDiscount();
         clientVehicles = new LinkedList<>();
-
-        ClientManager.addClientVehiclesToRegistered(id, clientVehicles);
-        ClientManager.addClientToRegistered(id, this);
     }
 
     /**
@@ -103,7 +95,6 @@ public abstract class Client {
      *
      * @param phoneNumber String variable which contains information about the surname
      */
-    //TODO implement checking correct number using patterns and regex expressions
     public void setPhoneNumber(String phoneNumber) {
         if (phoneNumber == null || phoneNumber.isBlank()) {
             throw new CheckDataException("Phone number could not be null or empty");
@@ -117,7 +108,6 @@ public abstract class Client {
      *
      * @param email String variable which contains information about the client email
      */
-    //TODO implement checking correct email
     public void setEmail(String email) {
         if (email == null || email.isBlank()) {
             throw new CheckDataException("Email could not be null or empty");
@@ -126,19 +116,8 @@ public abstract class Client {
         this.email = email;
     }
 
-
     /**
-     * Generates a unique ID for the client using counter of the Client objects.
-     *
-     * @return String with unique ID in special format "CLIENT-<counter>"
-     */
-    public String generateUniqueId() {
-        return "CLIENT-" + (++counter);
-    }
-
-
-    /**
-     * Method to update dynamically loyalty point based on service records on the system
+     * Method to update dynamically loyalty point based on service records on the system.
      *
      * @param loyaltyPoints contains information about loyalty points to the current client
      */
@@ -156,14 +135,6 @@ public abstract class Client {
         this.clientVehicles = clientVehicles;
     }
 
-    /**
-     * Method sets ID to the client.
-     *
-     * @param id String which contains information about client ID
-     */
-    public void setId(String id) {
-        this.id = id;
-    }
 
     /**
      * Method sets discount to the current client.
@@ -172,14 +143,6 @@ public abstract class Client {
      */
     public void setDiscount(double discount) {
         this.discount = discount;
-    }
-
-    public static int getCounter() {
-        return counter;
-    }
-
-    public String getId() {
-        return id;
     }
 
     public String getName() {
@@ -210,6 +173,26 @@ public abstract class Client {
         return loyaltyPoints;
     }
 
+    public String getType() {
+        if (this instanceof BasicClient) {
+            return "BASIC";
+        }
+
+        if (this instanceof VIPClient) {
+            return "VIP";
+        }
+
+        return "UNKNOWN";
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     @Override
     public String toString() {
         return "Client{" +
@@ -218,7 +201,6 @@ public abstract class Client {
                 ", surname='" + surname + '\'' +
                 ", phoneNumber='" + phoneNumber + '\'' +
                 ", email='" + email + '\'' +
-                ", clientVehicles=" + clientVehicles + '\'' +
                 ", loyaltyPoint=" + loyaltyPoints + '\'' +
                 ", discount=" + getDiscount() + "%" + '\'' +
                 ", typeOfClient=" + getClass() +

@@ -1,6 +1,6 @@
 package pl.pja.edu.s27619.system;
 
-public class SystemInformation {
+public class SystemSetup {
     private final double BUDGET_FOR_THE_YEAR = 2000000;
     private boolean systemDropped = false;
 
@@ -25,4 +25,6 @@ public class SystemInformation {
     public double getBUDGET_FOR_THE_YEAR() {
         return BUDGET_FOR_THE_YEAR;
     }
+
+
 }

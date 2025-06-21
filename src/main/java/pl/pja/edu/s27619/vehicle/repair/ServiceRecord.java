@@ -1,25 +1,58 @@
 package pl.pja.edu.s27619.vehicle.repair;
 
+import jakarta.persistence.*;
 import pl.pja.edu.s27619.clients.Client;
-import pl.pja.edu.s27619.clients.VIPClient;
 import pl.pja.edu.s27619.exceptions.CheckDataException;
 import pl.pja.edu.s27619.exceptions.ClientNotFoundException;
-import pl.pja.edu.s27619.service.ClientManager;
+import pl.pja.edu.s27619.schedule.ScheduledTask;
+import pl.pja.edu.s27619.service.Mechanic;
 import pl.pja.edu.s27619.vehicle.*;
 
 import java.io.Serializable;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
+@Entity
+@Table(name = "Service_Record")
 public class ServiceRecord implements Serializable {
 
-    private String uniqueId;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long uniqueId;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "client_id")
     private Client client;
+    
+    @Column(name = "service_date")
     private LocalDate serviceDate;
+
+    @Column(name = "description")
     private String description;
+
+    @Column(name = "cost")
     private double cost;
+
+    @Column(name = "discount_cost")
     private double costWithDiscount;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "service_status")
     private ServiceRecordStatus serviceRecordStatus;
+
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "certified_mechanic_id")
+    private Mechanic certifiedMechanic;
+
+    @OneToMany(mappedBy = "serviceRecord", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ScheduledTask> scheduledTasks = new ArrayList<>();
+
+    public ServiceRecord() {} // for hibernate purpose
 
     /**
      * Constructor to create a ServiceRecord and associate it directly with a Vehicle. This constructor shows to us
@@ -32,7 +65,6 @@ public class ServiceRecord implements Serializable {
      * @param vehicle     vehicle to which this service record connected
      */
     public ServiceRecord(Client client, LocalDate serviceDate, String description, double cost, Vehicle vehicle) {
-        uniqueId = generateUniqueId();
         setClient(client);
         setServiceDate(serviceDate);
         setDescription(description);
@@ -43,15 +75,6 @@ public class ServiceRecord implements Serializable {
         serviceRecordStatus = ServiceRecordStatus.UNDONE;
     }
 
-    /**
-     * Method generates the unique id to the service record using pattern: "SERVICE_RECORD-x", where x - number
-     * which generated randomly in range [1, 99999].
-     *
-     * @return String which contains unique ID for service record
-     */
-    private String generateUniqueId() {
-        return "SERVICE_RECORD-" + (int) (Math.random() * 99999 + 1);
-    }
 
     /**
      * Methods set service date to the service record and checks if service date is null or not. If yes throw exception,
@@ -131,7 +154,7 @@ public class ServiceRecord implements Serializable {
         if (this.vehicle != null) {
             Vehicle temp = this.vehicle;
             this.vehicle = null;
-            temp.removeServiceRecord(this.getServiceDate());
+            temp.removeServiceRecord(this);
         }
     }
 
@@ -146,19 +169,11 @@ public class ServiceRecord implements Serializable {
         if (client == null) {
             throw new ClientNotFoundException("Client is null or empty");
         }
+        this.client = client;
 
-        if (ClientManager.getInfoAboutVIPClients(client.getId())) {
-            VIPClient vipClient = new VIPClient(client.getName(), client.getSurname(), client.getPhoneNumber(),
-                    client.getEmail());
-            vipClient.setId(client.getId());
-            vipClient.setClientVehicles(client.getClientVehicles());
-            client.setLoyaltyPoints(client.getLoyaltyPoints() + 1);
-            this.client = vipClient;
-        } else {
-            this.client = client;
-            client.setLoyaltyPoints(client.getLoyaltyPoints() + 1);
-        }
+        client.setLoyaltyPoints(client.getLoyaltyPoints() + 1);
     }
+
 
     /**
      * Methods sets cost to the current service record based on added client personal discount.
@@ -196,7 +211,11 @@ public class ServiceRecord implements Serializable {
         this.vehicle = vehicle;
     }
 
-    public String getUniqueId() {
+    public void setCertifiedMechanic(Mechanic certifiedMechanic) {
+        this.certifiedMechanic = certifiedMechanic;
+    }
+
+    public Long getUniqueId() {
         return uniqueId;
     }
 
@@ -220,21 +239,24 @@ public class ServiceRecord implements Serializable {
         return cost;
     }
 
+    public double getCostWithDiscount() {
+        return costWithDiscount;
+    }
+
     public ServiceRecordStatus getServiceRecordStatus() {
         return serviceRecordStatus;
     }
 
+    public String getEmail() {
+        return client.getEmail();
+    }
+
+    public String getVehicleName() {
+        return vehicle.getFullName();
+    }
+
     @Override
     public String toString() {
-        return "ServiceRecord{" +
-                "serviceRecordId=" + uniqueId +
-                ", client=" + client.getId() + ", clientType=" + client.getClass() +
-                ", serviceDate=" + serviceDate +
-                ", description='" + description + '\'' +
-                ", cost=" + cost + '\'' +
-                ", costWithDiscount='" + costWithDiscount + '\'' +
-                ", vehicle=" + vehicle.getName() + " " + vehicle.getModel() + " " + " address in memory: " + vehicle +
-                ", serviceRecordStatus='" + serviceRecordStatus + '\'' +
-                '}';
+        return "ID: " +  uniqueId + " DESCRIPTION: " + description;
     }
 }

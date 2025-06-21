@@ -1,25 +1,29 @@
 package pl.pja.edu.s27619.administration;
 
 import jakarta.persistence.*;
+import pl.pja.edu.s27619.administration.interfaces.Accountant;
+import pl.pja.edu.s27619.administration.interfaces.Distributor;
+import pl.pja.edu.s27619.administration.interfaces.SystemAdmin;
 import pl.pja.edu.s27619.exceptions.CheckDataException;
+import pl.pja.edu.s27619.exceptions.ServiceRecordException;
+import pl.pja.edu.s27619.service.Mechanic;
+import pl.pja.edu.s27619.system.SystemSetup;
+import pl.pja.edu.s27619.vehicle.repair.ServiceRecord;
+import pl.pja.edu.s27619.warehouse.PartOrder;
+
+import java.text.DecimalFormat;
+import java.time.LocalDateTime;
+import java.util.LinkedList;
+import java.util.List;
 
 @Entity
-@Table(name = "Administrator")
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-@DiscriminatorColumn(name = "admin_type")
-public abstract class Admin {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@DiscriminatorValue("ADMIN")
+public class Admin extends User implements SystemAdmin, Accountant {
+    @Transient
+    private SystemSetup system = new SystemSetup();
 
-    @Column(name = "name", nullable = false)
-    private String name;
-
-    @Column(name = "surname", nullable = false)
-    private String surname;
-
-    @Column(name = "email", nullable = false, unique = true)
-    private String email;
+    @OneToMany(mappedBy = "admin", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PartOrder> partOrders;
 
     public Admin() {} // for hibernate purpose
 
@@ -30,65 +34,59 @@ public abstract class Admin {
      * @param surname String variable which contains information about the admin surname
      * @param email   String variable which contains information about the admin email
      */
-    public Admin(String name, String surname, String email) {
-        setName(name);
-        setSurname(surname);
-        setEmail(email);
+    public Admin(String login, String password, String name, String surname, String email) {
+        super(login, password, name, surname, email);
+        partOrders = new LinkedList<>();
+
+    }
+
+    public void displayInfo() {
+        System.out.println("Admin info:" + '\n' + "Name: " + getName() + " | " + "Surname: " + getSurname()
+                + " | Email: " + getEmail() + ";");
     }
 
     /**
-     * Method shows information about admin details.
-     */
-    public abstract void displayInfo();
-
-    /**
-     * Method checks if name is null or name is empty and throws exception, otherwise set name.
+     * Method which implements interface Accountant and calculates the budget per month which takes assigned budget
+     * for the year and divide it by 12 month, also save only 2 numbers after the dot, using pattern to format.
      *
-     * @param name contains information about the name
+     * @return double variable which contains information about budget assigned per month
      */
-    public void setName(String name) {
-        if (name == null || name.isBlank()) {
-            throw new CheckDataException("Name could not be null or empty");
-        }
+    @Override
+    public double calculateBudgetPerMonth() {
+        double budgetForMonth = system.getBUDGET_FOR_THE_YEAR() / 12;
+        DecimalFormat df = new DecimalFormat("0.00");
+        String formatted = df.format(budgetForMonth);
+        budgetForMonth = Double.parseDouble(formatted);
 
-        this.name = name;
+        return budgetForMonth;
     }
 
     /**
-     * Method checks if the surname is null or empty and throws exception, otherwise set the surname.
-     *
-     * @param surname contains information about the surname
+     * Method which implements interface SystemAdmin and throws exception, if system working. By default, system works
+     * and flag systemDropped is false, after that the flag systemDropped sets to true.
      */
-    public void setSurname(String surname) {
-        if (surname == null || surname.isBlank()) {
-            throw new CheckDataException("Surname could not be null or empty");
+    @Override
+    public void breakTheSystem() {
+        if (!system.isSystemDropped()) {
+            system.setSystemDropped(true);
+            throw new RuntimeException("Forced application shutdown");
         }
-
-        this.surname = surname;
     }
 
     /**
-     * Method check the email and if it null or empty throws exception, otherwise set the email.
+     * Method ordering parts and add them to the list of all order parts by current supervisor.
      *
-     * @param email variable which contains email of Admin user
+     * @param partName variable which contains necessary information about the ordered part
+     * @param quantity int variable contains amount of the part, which should be ordered
+     * @param cost     double variable which contains information about the cost for 1 part
      */
-    public void setEmail(String email) {
-        if (email == null || email.isBlank()) {
-            throw new CheckDataException("Email could not be null or empty");
-        }
+    public void orderPart(String partName, int quantity, double cost) {
+        PartOrder order = new PartOrder(this, partName, quantity, cost);
 
-        this.email = email;
+        partOrders.add(order);
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public String getSurname() {
-        return surname;
-    }
-
-    public String getEmail() {
-        return email;
+    public List<PartOrder> getPartOrders() {
+        return partOrders;
     }
 }

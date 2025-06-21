@@ -6,7 +6,8 @@ import jakarta.persistence.Entity;
 @Entity
 @DiscriminatorValue("VIP")
 public class VIPClient extends Client {
-    public VIPClient() {}
+
+    public VIPClient() {} // for hibernate purpose
 
     public VIPClient(String name, String surname, String phoneNumber, String email) {
         super(name, surname, phoneNumber, email);

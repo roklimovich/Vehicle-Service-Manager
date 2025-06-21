@@ -5,6 +5,7 @@ import pl.pja.edu.s27619.exceptions.CheckDataException;
 import pl.pja.edu.s27619.vehicle.Vehicle;
 
 import java.io.Serializable;
+import java.util.List;
 
 @Entity
 @Table(name = "Engine")
@@ -13,6 +14,9 @@ public class Engine implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "engine_id")
     private Long id;  // Must be here
+
+    @Column(name = "engine_name")
+    private String engineName;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type")
@@ -29,8 +33,8 @@ public class Engine implements Serializable {
     @Column(name = "power")
     private int power;
 
-    @OneToOne(mappedBy = "engine")
-    private Vehicle vehicle;
+    @OneToMany(mappedBy = "engine")
+    private List<Vehicle> vehicleList;
 
     // for Hibernate purpose
     public Engine() {}
@@ -41,7 +45,9 @@ public class Engine implements Serializable {
      * @param engineType enum which contains engine type
      * @param power      integer variable contains power of the engine
      */
-    public Engine(EngineType engineType, EmissionLevel emissionLevel, EngineCategory engineCategory, int power) {
+    public Engine(String engineName, EngineType engineType, EmissionLevel emissionLevel,
+                  EngineCategory engineCategory, int power) {
+        setEngineName(engineName);
         setEngineType(engineType);
         setEmissionLevel(emissionLevel);
         setEngineCategory(engineCategory);
@@ -101,6 +107,24 @@ public class Engine implements Serializable {
         this.engineCategory = engineCategory;
     }
 
+    /**
+     * Method set engine name to the engine, check if it is not null, otherwise throws exception.
+     *
+     * @param engineName variable which contains name of the engine
+     */
+    public void setEngineName(String engineName) {
+        if (engineName == null) {
+            throw new CheckDataException("Engine category could not be null");
+        }
+
+        this.engineName = engineName;
+    }
+
+    public String getEngineName() {
+        return engineName;
+    }
+
+
     public EmissionLevel getEmissionLevel() {
         return emissionLevel;
     }
@@ -116,6 +140,10 @@ public class Engine implements Serializable {
     public EngineType getEngineType() {
 
         return engineType;
+    }
+
+    public Long getId() {
+        return id;
     }
 
     @Override

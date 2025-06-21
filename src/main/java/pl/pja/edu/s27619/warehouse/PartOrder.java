@@ -1,10 +1,10 @@
 package pl.pja.edu.s27619.warehouse;
 
 import jakarta.persistence.*;
-import pl.pja.edu.s27619.administration.Supervisor;
+import pl.pja.edu.s27619.administration.Admin;
 import pl.pja.edu.s27619.exceptions.CheckDataException;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 @Entity
@@ -14,9 +14,9 @@ public class PartOrder {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long Id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "supervisor_id")
-    private Supervisor supervisor;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "admin_id")
+    private Admin admin;
 
     @Column(name = "part_name", nullable = false)
     private String partName;
@@ -28,39 +28,43 @@ public class PartOrder {
     private double cost;
 
     @Column(name = "order_date", nullable = false)
-    private LocalDateTime orderTime;
+    private LocalDate orderDate;
 
-    public PartOrder(){}
+    @Column(name = "admin_email", nullable = false)
+    private String adminEmail;
+
+    public PartOrder(){} // for hibernate purpose
 
     /**
      * Constructor which generated object of class PartOrder and requires information, which should be added for sure,
      * to proceed the correct work of the system.
      *
-     * @param supervisor variable which contains information about supervisor, which order the part
+     * @param admin variable which contains information about supervisor, which order the part
      * @param partName   variable with the name about part, which should be ordered
      * @param quantity   contains the number of parts, which should be ordered
      * @param cost       contains how much the one part which should be ordered costs
      */
-    public PartOrder(Supervisor supervisor, String partName, int quantity, double cost) {
-        setSupervisor(supervisor);
+    public PartOrder(Admin admin, String partName, int quantity, double cost) {
+        setAdmin(admin);
         setPart(partName);
         setQuantity(quantity);
         setCost(cost);
         setOrderTime();
+        setAdminEmail(admin.getEmail());
     }
 
     /**
-     * Method sets the supervisor to the PartOrder. Firstly, checks if supervisor is null or not, if yes - throws
+     * Method sets the admin to the PartOrder. Firstly, checks if supervisor is null or not, if yes - throws
      * exception, otherwise set the supervisor.
      *
-     * @param supervisor contains information about the supervisor, who order the parts
+     * @param admin contains information about the admin, who order the parts
      */
-    public void setSupervisor(Supervisor supervisor) {
-        if (supervisor == null) {
+    public void setAdmin(Admin admin) {
+        if (admin == null) {
             throw new CheckDataException("Supervisor could not be null");
         }
 
-        this.supervisor = supervisor;
+        this.admin = admin;
     }
 
     /**
@@ -109,23 +113,60 @@ public class PartOrder {
      * Method sets the order time. By the default it sets the local time, which was, when the order is created.
      */
     public void setOrderTime() {
-        orderTime = LocalDateTime.now();
+        orderDate = LocalDate.now();
     }
 
     /**
-     * Method formats the order time to readable pattern "yyyy-MM-dd HH:mm:ss".
+     * Method sets the email of admin, which buy the part in the shop.
      *
-     * @param localDateTime contains the time when order was created
+     * @param adminEmail variable which contains admin email
+     */
+    public void setAdminEmail(String adminEmail) {
+        this.adminEmail = adminEmail;
+    }
+
+    /**
+     * Method formats the order time to readable pattern "yyyy-MM-dd".
+     *
+     * @param localDate contains the time when order was created
      * @return String which contains formatted time
      */
-    public String getFormattedOrderTime(LocalDateTime localDateTime) {
+    public String getFormattedOrderTime(LocalDate localDate) {
 
-        return localDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        return localDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
     }
 
     @Override
     public String toString() {
         return partName + " quantity: " + quantity + ", Costs: " + cost
-                + ", Time: " + getFormattedOrderTime(orderTime);
+                + ", Time: " + getFormattedOrderTime(orderDate);
+    }
+
+    public String getAdminEmail() {
+        return adminEmail;
+    }
+
+    public Long getId() {
+        return Id;
+    }
+
+    public Admin getAdmin() {
+        return admin;
+    }
+
+    public String getPartName() {
+        return partName;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public double getCost() {
+        return cost;
+    }
+
+    public LocalDate getOrderDate() {
+        return orderDate;
     }
 }

@@ -3,13 +3,10 @@ package pl.pja.edu.s27619.vehicle;
 import jakarta.persistence.*;
 import pl.pja.edu.s27619.clients.Client;
 import pl.pja.edu.s27619.exceptions.CheckDataException;
-import pl.pja.edu.s27619.service.VehicleManager;
 import pl.pja.edu.s27619.vehicle.component.Engine;
-import pl.pja.edu.s27619.vehicle.condition.VehicleCertificate;
 import pl.pja.edu.s27619.vehicle.repair.ServiceRecord;
 
 import java.io.Serializable;
-import java.time.LocalDate;
 import java.util.*;
 
 @Entity
@@ -17,8 +14,9 @@ import java.util.*;
 @Inheritance(strategy = InheritanceType.JOINED)
 public class Vehicle implements Serializable {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "vehicle_id", nullable = false, updatable = false)
-    private String uniqueId;
+    private Long id;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "vehicle_type", nullable = false)
@@ -33,41 +31,22 @@ public class Vehicle implements Serializable {
     @Column(name = "color", length = 60)
     private String color;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "client_id")
     private Client owner;
 
-    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Transient
+    private String ownerEmail;
+
+    @ManyToOne
     @JoinColumn(name = "engine_id")
     private Engine engine;
 
-    @Transient
-    private Map<LocalDate, ServiceRecord> serviceRecords = new HashMap<>();
+    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<ServiceRecord> serviceRecords = new LinkedList<>();
 
-    @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<VehicleCertificate> vehicleCertificates = new ArrayList<>();
 
-    @Transient
-    private static int idCounter;
-
-    public Vehicle() {}
-
-    /**
-     * Constructor to initialize Vehicle object without a color.
-     *
-     * @param vehicleType the type of the vehicle
-     * @param name        manufacturer name of the vehicle
-     * @param model       model of the vehicle
-     * @param engine      engine which used in vehicle
-     */
-    public Vehicle(VehicleType vehicleType, String name, String model, Engine engine) {
-        uniqueId = generateUniqueId(); // derived attribute
-        setVehicleType(vehicleType);
-        setName(name);
-        setModel(model);
-        setEngine(engine);
-        VehicleManager.getRegisteredVehicles().put(uniqueId, this);
-    }
+    public Vehicle() {} // for hibernate purpose
 
     /**
      * Overload constructor to initialize Vehicle object with a color.
@@ -79,22 +58,11 @@ public class Vehicle implements Serializable {
      * @param color       color of vehicle
      */
     public Vehicle(VehicleType vehicleType, String name, String model, Engine engine, String color) {
-        uniqueId = generateUniqueId();
         setVehicleType(vehicleType);
         setName(name);
         setModel(model);
         setColor(color);
         setEngine(engine);
-        VehicleManager.getRegisteredVehicles().put(uniqueId, this);
-    }
-
-    /**
-     * Generates a unique ID for the vehicle using counter of the Vehicle objects.
-     *
-     * @return String with unique ID in special format "VEHICLE-<idCounter>"
-     */
-    public String generateUniqueId() {
-        return "VEHICLE-" + (++idCounter);
     }
 
     /**
@@ -107,12 +75,12 @@ public class Vehicle implements Serializable {
             throw new CheckDataException("Repair log and date could not be null");
         }
 
-        if (serviceRecords.containsKey(repairLog.getServiceDate())) {
+        if (serviceRecords.contains(repairLog)) {
             throw new CheckDataException("Repair log already in service records for this date: "
                     + repairLog.getServiceDate());
         }
 
-        serviceRecords.put(repairLog.getServiceDate(), repairLog);
+        serviceRecords.add(repairLog);
         repairLog.linkVehicle(this);
     }
 
@@ -123,47 +91,29 @@ public class Vehicle implements Serializable {
      * @param serviceRecord the service record which should be linked
      */
     public void linkServiceRecord(ServiceRecord serviceRecord) {
-        serviceRecords.put(serviceRecord.getServiceDate(), serviceRecord);
+        serviceRecords.add(serviceRecord);
     }
 
     /**
      * This method remove a service record from vehicle based on the given date, also ensures that the association is
      * unlinked in both directions (Vehicle -> ServiceRecord and ServiceRecord -> Vehicle).
      *
-     * @param date date of the service record to remove
+     * @param serviceRecordToDelete the service record to remove
      */
-    public void removeServiceRecord(LocalDate date) {
-        if (serviceRecords.containsKey(date)) {
-            ServiceRecord removedRecord = serviceRecords.remove(date);
+    public void removeServiceRecord(ServiceRecord serviceRecordToDelete) {
+        ServiceRecord removedRecord = null;
+        if (serviceRecords.contains(serviceRecordToDelete)) {
+            for (ServiceRecord serviceRecord : serviceRecords) {
+                if (serviceRecord == serviceRecordToDelete) {
+                    removedRecord = serviceRecord;
+                    break;
+                }
+            }
+
             if (removedRecord != null) {
                 removedRecord.unlinkVehicle();
             }
 
-        }
-    }
-
-    /**
-     * Find service record by the date from given service records for vehicle.
-     *
-     * @param date the date of the service
-     * @return an Optional containing ServiceRecords if found, otherwise empty
-     */
-    public Optional<ServiceRecord> getServiceRecordByDate(LocalDate date) {
-        return Optional.ofNullable(serviceRecords.get(date));
-    }
-
-    /**
-     * Method to display history of service records and show them to the user, sort them in ascending order by date.
-     */
-    public void displayServiceHistory() {
-        System.out.println("Service history for " + uniqueId + ":");
-        if (serviceRecords.isEmpty()) {
-            System.out.println("Service history is empty for this vehicle");
-        } else {
-            serviceRecords.entrySet()
-                    .stream()
-                    .sorted(Map.Entry.comparingByKey())
-                    .forEach(System.out::println);
         }
     }
 
@@ -173,7 +123,7 @@ public class Vehicle implements Serializable {
      * @return String containing the unique ID, name, model, and engine type of vehicle
      */
     public String getBasicVehicleInfo() {
-        return "Unique ID: " + uniqueId + "; Name: " + name + "; Model: " + model +
+        return "Unique ID: " + id + "; Name: " + name + "; Model: " + model +
                 "; Engine: " + engine.getEngineType();
     }
 
@@ -181,13 +131,12 @@ public class Vehicle implements Serializable {
      * Method to display detailed information about Vehicle in console.
      */
     public void displayInfo() {
-        System.out.println("Unique ID: " + uniqueId);
+        System.out.println("Unique ID: " + id);
         System.out.println("Vehicle type: " + vehicleType);
         System.out.println("Manufacturer name: " + name);
         System.out.println("Model:  " + model);
         System.out.println("Engine: " + engine);
         System.out.println("Color: " + (color != null ? color : "Not specified"));
-        displayServiceHistory();
     }
 
     /**
@@ -215,7 +164,7 @@ public class Vehicle implements Serializable {
             throw new CheckDataException("Vehicle name could not be null or empty");
         }
 
-        this.name = name;
+        this.name = name.toUpperCase();
     }
 
     /**
@@ -229,7 +178,7 @@ public class Vehicle implements Serializable {
             throw new CheckDataException("Model could not be null or empty");
         }
 
-        this.model = model;
+        this.model = model.toUpperCase();
     }
 
     /**
@@ -262,29 +211,6 @@ public class Vehicle implements Serializable {
     }
 
     /**
-     * Method sets the certificate to the vehicle. Certificate could not be duplicated, and should be Unique.
-     *
-     * @param certificate variable which contains information about the given ID
-     */
-    public void addCertificate(VehicleCertificate certificate) {
-        if (!vehicleCertificates.contains(certificate)) {
-            vehicleCertificates.add(certificate);
-            certificate.setVehicle(this);
-        }
-    }
-
-    /**
-     * Method removes the certificate from the vehicle.
-     *
-     * @param certificate variable which contains certificate which should be deleted
-     */
-    public void removeCertificate(VehicleCertificate certificate) {
-        if (vehicleCertificates.remove(certificate)) {
-            certificate.removeVehicle();
-        }
-    }
-
-    /**
      * Method to set the owner for the vehicle.
      *
      * @param owner variable of type Client, which has information about the vehicle owner
@@ -301,8 +227,8 @@ public class Vehicle implements Serializable {
         return engine;
     }
 
-    public String getUniqueId() {
-        return uniqueId;
+    public Long getId() {
+        return id;
     }
 
     public VehicleType getVehicleType() {
@@ -313,15 +239,19 @@ public class Vehicle implements Serializable {
         return name;
     }
 
-    public Optional<String> getColor() {
-        return Optional.ofNullable(color);
+    public String getColor() {
+        if (color == null) {
+            return null;
+        } else {
+            return color;
+        }
     }
 
     public String getModel() {
         return model;
     }
 
-    public Map<LocalDate, ServiceRecord> getServiceRecords() {
+    public List<ServiceRecord> getServiceRecords() {
         return serviceRecords;
     }
 
@@ -329,12 +259,18 @@ public class Vehicle implements Serializable {
         return owner;
     }
 
-    public List<VehicleCertificate> getVehicleCertificates() {
-        return vehicleCertificates;
+    public String getOwnerEmail() {
+        return owner.getEmail();
     }
 
     public String getFullName() {
         return getName() + " " + getModel();
     }
 
+    @Override
+    public String toString() {
+        return "VEHICLE: " + getFullName().toUpperCase() + ", Vehicle type: "
+                + getVehicleType() + ", Engine: " + engine.getEngineName().toUpperCase() + " " + engine.getEngineType().toString()
+                + " " + engine.getPower();
+    }
 }
