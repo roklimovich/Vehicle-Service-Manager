@@ -255,6 +255,14 @@ public class ServiceRecord implements Serializable {
         return vehicle.getFullName();
     }
 
+    public Mechanic getCertifiedMechanic() {
+        return certifiedMechanic;
+    }
+
+    public List<ScheduledTask> getScheduledTasks() {
+        return scheduledTasks;
+    }
+
     @Override
     public String toString() {
         return "ID: " +  uniqueId + " DESCRIPTION: " + description;

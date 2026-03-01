@@ -1,6 +1,7 @@
 package pl.pja.edu.s27619.service;
 
 import jakarta.persistence.*;
+import pl.pja.edu.s27619.administration.Admin;
 import pl.pja.edu.s27619.administration.User;
 import pl.pja.edu.s27619.exceptions.ServiceRecordException;
 import pl.pja.edu.s27619.schedule.ScheduledTask;
@@ -17,6 +18,10 @@ public class Mechanic extends User {
 
     @OneToMany(mappedBy = "mechanic", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ScheduledTask> scheduledTasks = new ArrayList<>();
+
+    @ManyToOne
+    @JoinColumn(name = "admin_id")
+    private Admin admin;
 
     public Mechanic() {}
 
@@ -81,6 +86,10 @@ public class Mechanic extends User {
 
     public List<ScheduledTask> getScheduledTasks() {
         return scheduledTasks;
+    }
+
+    public void setAdmin(Admin admin) {
+        this.admin = admin;
     }
 
     @Override

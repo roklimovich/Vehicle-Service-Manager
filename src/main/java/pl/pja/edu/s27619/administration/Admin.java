@@ -4,10 +4,12 @@ import jakarta.persistence.*;
 import pl.pja.edu.s27619.administration.interfaces.Accountant;
 import pl.pja.edu.s27619.administration.interfaces.Distributor;
 import pl.pja.edu.s27619.administration.interfaces.SystemAdmin;
+import pl.pja.edu.s27619.clients.Client;
 import pl.pja.edu.s27619.exceptions.CheckDataException;
 import pl.pja.edu.s27619.exceptions.ServiceRecordException;
 import pl.pja.edu.s27619.service.Mechanic;
 import pl.pja.edu.s27619.system.SystemSetup;
+import pl.pja.edu.s27619.vehicle.component.Engine;
 import pl.pja.edu.s27619.vehicle.repair.ServiceRecord;
 import pl.pja.edu.s27619.warehouse.PartOrder;
 
@@ -25,6 +27,15 @@ public class Admin extends User implements SystemAdmin, Accountant {
     @OneToMany(mappedBy = "admin", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PartOrder> partOrders;
 
+    @OneToMany(mappedBy = "admin", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<Client> clients = new LinkedList<>();
+
+    @OneToMany(mappedBy = "admin", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Mechanic> mechanics = new LinkedList<>();
+
+    @OneToMany(mappedBy = "admin", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Engine> engines = new LinkedList<>();
+
     public Admin() {} // for hibernate purpose
 
     /**
@@ -38,6 +49,36 @@ public class Admin extends User implements SystemAdmin, Accountant {
         super(login, password, name, surname, email);
         partOrders = new LinkedList<>();
 
+    }
+
+    public void addClient(Client client) {
+        clients.add(client);
+        client.setAdmin(this);
+    }
+
+    public void removeClient(Client client) {
+        clients.remove(client);
+        client.setAdmin(null);
+    }
+
+    public void addMechanic(Mechanic mechanic) {
+        mechanics.add(mechanic);
+        mechanic.setAdmin(this);
+    }
+
+    public void removeMechanic(Mechanic mechanic) {
+        mechanics.remove(mechanic);
+        mechanic.setAdmin(null);
+    }
+
+    public void addEngine(Engine engine) {
+        engines.add(engine);
+        engine.setAdmin(this);
+    }
+
+    public void removeEngine(Engine engine) {
+        engines.remove(engine);
+        engine.setAdmin(null);
     }
 
     public void displayInfo() {
@@ -60,6 +101,7 @@ public class Admin extends User implements SystemAdmin, Accountant {
 
         return budgetForMonth;
     }
+
 
     /**
      * Method which implements interface SystemAdmin and throws exception, if system working. By default, system works
@@ -86,7 +128,26 @@ public class Admin extends User implements SystemAdmin, Accountant {
         partOrders.add(order);
     }
 
+    public List<ServiceRecord> getAllServiceRecords() {
+        return clients.stream()
+                .flatMap(client -> client.getClientVehicles().stream())
+                .flatMap(vehicle -> vehicle.getServiceRecords().stream())
+                .toList();
+    }
+
     public List<PartOrder> getPartOrders() {
         return partOrders;
+    }
+
+    public List<Client> getClients() {
+        return clients;
+    }
+
+    public List<Mechanic> getMechanics() {
+        return mechanics;
+    }
+
+    public List<Engine> getEngines() {
+        return engines;
     }
 }

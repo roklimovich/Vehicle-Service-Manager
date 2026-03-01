@@ -28,7 +28,7 @@ public class MechanicScheduleController implements DataReceiver {
     @FXML
     private TextField timeField;
     @FXML
-    private ListView<ScheduledTask> mechanicTimeTable;
+    private ListView<ScheduledTask> mechanicTimeTable = new ListView<>();
     @FXML
     private Button scheduleButton;
     @FXML
@@ -64,7 +64,13 @@ public class MechanicScheduleController implements DataReceiver {
         }
 
         generateMechanicSchedulePage();
+        selectDate.setValue(LocalDate.now());
+        selectedDate.setText(LocalDate.now().toString());
+        generateMechanicTimeTableForSelectedDate();
+        generateServiceRecordsForSelectedDate(LocalDate.now());
     }
+
+
 
     /**
      * Method generates data for the mechanic schedule page.
@@ -107,44 +113,43 @@ public class MechanicScheduleController implements DataReceiver {
      * Method unschedule mechanic for chosen service record.
      */
     private void unscheduleMechanic() {
-        ScheduledTask getTask;
-
-        try {
-            getTask = mechanicTimeTable.getSelectionModel().getSelectedItem();
-        } catch (Exception e) {
+        ScheduledTask selectedTask = mechanicTimeTable.getSelectionModel().getSelectedItem();
+        if (selectedTask == null) {
             wrongLabel.setText("Choose task to delete");
             return;
         }
 
-
-        try {
-            Session session = DatabaseConfigSession.getSessionFactory().openSession();
-
+        try (Session session = DatabaseConfigSession.getSessionFactory().openSession()) {
             session.beginTransaction();
 
-            ScheduledTask taskToDelete = session.createQuery("FROM ScheduledTask WHERE id = :id",
-                    ScheduledTask.class)
-                    .setParameter("id", getTask.getId())
-                    .uniqueResult();
+            // Reload entities in current session
+            ScheduledTask taskToDelete = session.find(ScheduledTask.class, selectedTask.getId());
 
-            ServiceRecord serviceRecord = getTask.getServiceRecord();
-            serviceRecord.setCertifiedMechanic(null);
+            if (taskToDelete.getMechanic() != null) {
+                taskToDelete.getMechanic().getScheduledTasks().remove(taskToDelete);
+                taskToDelete.setMechanic(null);
+            }
+            if (taskToDelete.getServiceRecord() != null) {
+                taskToDelete.getServiceRecord().setCertifiedMechanic(null);
+            }
 
             session.remove(taskToDelete);
-            session.merge(serviceRecord);
 
             session.getTransaction().commit();
-            session.close();
 
+            session.close();
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
             wrongLabel.setText("Could not delete task");
             return;
         }
 
+        mechanicTimeTable.getItems().remove(selectedTask);
+
+        // Refresh other UI elements
         generateServiceRecordsForSelectedDate(selectDate.getValue());
-        generateListForSelectedDate();
         restFields();
+
     }
 
     /**
@@ -161,19 +166,21 @@ public class MechanicScheduleController implements DataReceiver {
         }
 
         try {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("H:mm");
-            LocalTime time = LocalTime.parse(getTime, formatter);
-
             Session session = DatabaseConfigSession.getSessionFactory().openSession();
 
             session.beginTransaction();
 
+            mechanic = session.merge(mechanic);
+            serviceRecord = session.merge(serviceRecord);
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("H:mm");
+            LocalTime time = LocalTime.parse(getTime, formatter);
             ScheduledTask task = new ScheduledTask(mechanic, serviceRecord, date, time);
 
+            mechanic.getScheduledTasks().add(task);
             serviceRecord.setCertifiedMechanic(mechanic);
 
             session.persist(task);
-            session.merge(serviceRecord);
 
             session.getTransaction().commit();
 
@@ -184,7 +191,7 @@ public class MechanicScheduleController implements DataReceiver {
             return;
         }
 
-        generateListForSelectedDate();
+        generateMechanicTimeTableForSelectedDate();
         generateServiceRecordsForSelectedDate(selectDate.getValue());
         restFields();
 
@@ -196,9 +203,9 @@ public class MechanicScheduleController implements DataReceiver {
      */
     public void actionPerformed() {
         selectedDate.setText(selectDate.getValue().toString());
-        generateListForSelectedDate();
+        generateMechanicTimeTableForSelectedDate();
         generateServiceRecordsForSelectedDate(selectDate.getValue());
-        generateListForSelectedDate();
+        generateMechanicTimeTableForSelectedDate();
     }
 
     /**
@@ -207,24 +214,22 @@ public class MechanicScheduleController implements DataReceiver {
     private void generateServiceRecordsForSelectedDate(LocalDate localDate) {
         ObservableList<ServiceRecord> mainServiceList = observableArrayList();
 
-        if (localDate == null) {
-            return;
-        }
-
         try {
             Session session = DatabaseConfigSession.getSessionFactory().openSession();
 
             session.beginTransaction();
 
-            List<ServiceRecord> listOfRecords = session
-                    .createQuery("FROM ServiceRecord WHERE serviceDate = :date AND certifiedMechanic IS NULL",
-                            ServiceRecord.class)
-                    .setParameter("date", localDate)
-                    .list();
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
+
+            List<ServiceRecord> filtered =
+                    managedAdmin.getAllServiceRecords().stream()
+                            .filter(sr -> sr.getServiceDate().equals(localDate))
+                            .filter(sr -> sr.getCertifiedMechanic() == null)
+                            .toList();
 
             session.close();
 
-            mainServiceList.addAll(listOfRecords);
+            mainServiceList.addAll(filtered);
 
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -236,7 +241,7 @@ public class MechanicScheduleController implements DataReceiver {
     /**
      * Method generate list of service records to chosen date which is registered into the database.
      */
-    private void generateListForSelectedDate() {
+    private void generateMechanicTimeTableForSelectedDate() {
         LocalDate date = selectDate.getValue();
 
         ObservableList<ScheduledTask> listOfTasks = observableArrayList();
@@ -245,13 +250,11 @@ public class MechanicScheduleController implements DataReceiver {
             Session session = DatabaseConfigSession.getSessionFactory().openSession();
 
             session.beginTransaction();
+            Mechanic managedMechanic = session.find(Mechanic.class, mechanic.getId());
 
-            List<ScheduledTask> listOfRecords = session
-                    .createQuery("FROM ScheduledTask WHERE scheduledDate = :date AND mechanic = :mechanic",
-                            ScheduledTask.class)
-                    .setParameter("date", date)
-                    .setParameter("mechanic", mechanic)
-                    .list();
+            List<ScheduledTask> listOfRecords = managedMechanic.getScheduledTasks().stream()
+                            .filter(task -> task.getScheduledDate().equals(date))
+                                    .toList();
 
             session.close();
 
@@ -264,6 +267,7 @@ public class MechanicScheduleController implements DataReceiver {
         mechanicTimeTable.setItems(listOfTasks);
 
     }
+
 
     /**
      * Method initialize the default state of the scene.

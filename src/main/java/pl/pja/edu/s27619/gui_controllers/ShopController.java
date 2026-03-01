@@ -74,18 +74,6 @@ public class ShopController implements DataReceiver, TableGenerator {
     private TextField costField;
 
 
-    @FXML
-    public void initialize() {
-        partNameField.setText("");
-        quantityField.setText("");
-        costField.setText("");
-
-        generateTableView();
-
-        mainList = ordersFromDB();
-        orderList.setItems(ordersFromDB());
-    }
-
     /**
      * Method handle left mouse button when it was clicked.
      *
@@ -102,7 +90,7 @@ public class ShopController implements DataReceiver, TableGenerator {
                 switch (buttonId) {
                     case "buyButton":
                         buy();
-                        updateData();
+                        //updateData();
                         break;
                     case "backButton":
                         Main.changeScene("/home_page/admin_home.fxml", admin);
@@ -134,6 +122,9 @@ public class ShopController implements DataReceiver, TableGenerator {
 
             session.getTransaction().commit();
 
+            mainList.add(partOrder);
+            orderList.setItems(mainList);
+
         } catch (Exception e) {
             System.out.println(e.getMessage());
             if (session != null && session.getTransaction().isActive()) {
@@ -144,10 +135,10 @@ public class ShopController implements DataReceiver, TableGenerator {
                 session.close();
             }
         }
-    }
 
-    private void updateData() {
-        initialize();
+        partNameField.setText("");
+        quantityField.setText("");
+        costField.setText("");
     }
 
     /**
@@ -163,7 +154,7 @@ public class ShopController implements DataReceiver, TableGenerator {
 
             session.beginTransaction();
 
-            List<PartOrder> partOrdersList = session.createQuery("FROM PartOrder", PartOrder.class).list();
+            List<PartOrder> partOrdersList = session.find(Admin.class, admin.getId()).getPartOrders();
 
             orderList.addAll(partOrdersList);
 
@@ -188,6 +179,15 @@ public class ShopController implements DataReceiver, TableGenerator {
         for (Object obj : objects) {
             admin = (Admin) obj;
         }
+
+        partNameField.setText("");
+        quantityField.setText("");
+        costField.setText("");
+
+        generateTableView();
+
+        mainList = ordersFromDB();
+        orderList.setItems(ordersFromDB());
     }
 
     /**

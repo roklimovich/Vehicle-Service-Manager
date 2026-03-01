@@ -15,7 +15,7 @@ public class ScheduledTask {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "mechanic_id")
     private Mechanic mechanic;
 

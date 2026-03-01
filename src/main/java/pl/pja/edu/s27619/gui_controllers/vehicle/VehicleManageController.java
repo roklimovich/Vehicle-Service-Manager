@@ -19,6 +19,7 @@ import pl.pja.edu.s27619.vehicle.Vehicle;
 import pl.pja.edu.s27619.vehicle.VehicleType;
 import pl.pja.edu.s27619.vehicle.component.Engine;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,8 +28,8 @@ import static javafx.collections.FXCollections.observableArrayList;
 
 public class VehicleManageController implements DataReceiver {
 
-    private List<Engine> enginesFromDB;
-    private List<Client> clientsFromDB;
+    private List<Engine> enginesFromDB = new ArrayList<>();
+    private List<Client> clientsFromDB = new ArrayList<>();
 
     private Admin admin;
     private ObservableList<Vehicle> mainList;
@@ -71,14 +72,7 @@ public class VehicleManageController implements DataReceiver {
     private TextField vehicleModelField;
     @FXML
     private Button editButton;
-    
-    @FXML
-    public void initialize() {
-        generateTableViewAndComBoxes();
 
-        mainList = vehiclesFromDB();
-        vehicleList.setItems(mainList);
-    }
 
 
     /**
@@ -121,7 +115,11 @@ public class VehicleManageController implements DataReceiver {
 
             session.beginTransaction();
 
-            List<Vehicle> vehiclesFromDB = session.createQuery("FROM Vehicle ", Vehicle.class).list();
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
+
+            List<Vehicle> vehiclesFromDB = managedAdmin.getClients().stream()
+                            .flatMap(client -> client.getClientVehicles().stream())
+                                    .toList();
 
             vehicles.addAll(vehiclesFromDB);
 
@@ -148,7 +146,10 @@ public class VehicleManageController implements DataReceiver {
 
             session.beginTransaction();
 
-            enginesFromDB = session.createQuery("FROM Engine ", Engine.class).list();
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
+            managedAdmin.getEngines().size();
+
+            enginesFromDB.addAll(managedAdmin.getEngines());
 
             session.getTransaction().commit();
             session.close();
@@ -177,7 +178,9 @@ public class VehicleManageController implements DataReceiver {
 
             session.beginTransaction();
 
-            clientsFromDB = session.createQuery("FROM Client ", Client.class).list();
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
+
+            clientsFromDB = managedAdmin.getClients();
 
             session.getTransaction().commit();
             session.close();
@@ -413,5 +416,10 @@ public class VehicleManageController implements DataReceiver {
         for (Object obj : objects) {
             admin = (Admin) obj;
         }
+
+        generateTableViewAndComBoxes();
+
+        mainList = vehiclesFromDB();
+        vehicleList.setItems(mainList);
     }
 }

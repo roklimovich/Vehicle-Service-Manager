@@ -15,10 +15,12 @@ import pl.pja.edu.s27619.administration.Admin;
 import pl.pja.edu.s27619.clients.Client;
 import pl.pja.edu.s27619.gui_controllers.dbconfig.DatabaseConfigSession;
 import pl.pja.edu.s27619.gui_controllers.interfaces.DataReceiver;
+import pl.pja.edu.s27619.schedule.ScheduledTask;
 import pl.pja.edu.s27619.vehicle.Vehicle;
 import pl.pja.edu.s27619.vehicle.repair.ServiceRecord;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -28,8 +30,8 @@ import static javafx.collections.FXCollections.observableArrayList;
 public class ServiceRecordManageController implements DataReceiver {
 
 
-    private List<Vehicle> listVehiclesFromDB;
-    private List<Client> clients;
+    private List<Vehicle> listVehiclesFromDB = new ArrayList<>();
+    private List<Client> clients = new ArrayList<>();
     private ObservableList<ServiceRecord> mainList;
     @FXML
     private Button backButtonFromService;
@@ -72,10 +74,10 @@ public class ServiceRecordManageController implements DataReceiver {
 
     @FXML
     public void initialize() {
-        generateComboBoxesAndTableView();
-
-        mainList = getServiceRecordsFromDB();
-        serviceList.setItems(mainList);
+        // Keep UI setup only
+        for (TableColumn<?, ?> column : serviceList.getColumns()) {
+            column.setResizable(false);
+        }
     }
 
     /**
@@ -92,6 +94,11 @@ public class ServiceRecordManageController implements DataReceiver {
                 admin = (Admin) obj;
             }
         }
+        loadClientsAndVehicles();
+        generateComboBoxesAndTableView();
+
+        mainList = getServiceRecordsFromDB();
+        serviceList.setItems(mainList);
     }
 
     /**
@@ -126,36 +133,50 @@ public class ServiceRecordManageController implements DataReceiver {
      * service record exists.
      */
     private void deleteServiceRecord() {
-        ServiceRecord serviceRecord = serviceList.getSelectionModel().getSelectedItem();
+        ServiceRecord selected = serviceList.getSelectionModel().getSelectedItem();
 
-        if (serviceRecord != null) {
-            Session session = DatabaseConfigSession.getSessionFactory().openSession();
+        if (selected == null) {
+            wrongLabel.setText("No service record selected");
+            return;
+        }
 
-            try {
-                session.beginTransaction();
+        Session session = null;
 
-                session.remove(serviceRecord);
+        try {
+            session = DatabaseConfigSession.getSessionFactory().openSession();
+            session.beginTransaction();
 
-                session.getTransaction().commit();
-
-            } catch (Exception e) {
-                System.out.println(e.getMessage());
-                wrongLabel.setText("Something is going wrong, try again");
-                if (session != null && session.getTransaction().isActive()) {
-                    session.getTransaction().rollback();
-                }
-            } finally {
-                if (session != null) {
-                    session.close();
-                }
+            // Reload ServiceRecord and Vehicle
+            ServiceRecord managedRecord = session.get(ServiceRecord.class, selected.getUniqueId());
+            if (managedRecord == null) {
+                wrongLabel.setText("Service record not found in DB");
+                session.getTransaction().rollback();
+                return;
             }
 
-            resetFields();
-            mainList.remove(serviceRecord);
+            Vehicle vehicle = managedRecord.getVehicle();
+            if (vehicle != null) {
+                vehicle.getServiceRecords().remove(managedRecord);
+            }
+
+            session.remove(managedRecord);
+
+            session.getTransaction().commit();
+
+            // Remove from UI
+            mainList.remove(selected);
             serviceList.setItems(mainList);
 
-        } else {
-            wrongLabel.setText("No selected mechanic to delete");
+        } catch (Exception e) {
+            e.printStackTrace();
+            wrongLabel.setText("Failed to delete service record");
+            if (session != null && session.getTransaction().isActive()) {
+                session.getTransaction().rollback();
+            }
+        } finally {
+            if (session != null) {
+                session.close();
+            }
         }
     }
 
@@ -273,20 +294,47 @@ public class ServiceRecordManageController implements DataReceiver {
 
             session.beginTransaction();
 
-            clients = session.createQuery("FROM Client ", Client.class).list();
+            clients = session.find(Admin.class, admin.getId()).getClients();
+
+            clientEmails = clients.stream()
+                            .map(Client::getEmail)
+                            .collect(Collectors.toCollection(FXCollections::observableArrayList));
 
             session.getTransaction().commit();
             session.close();
-
-            for (Client client : clients) {
-                clientEmails.add(client.getEmail());
-            }
 
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
 
         return clientEmails;
+    }
+
+    private void loadClientsAndVehicles() {
+        try (Session session = DatabaseConfigSession.getSessionFactory().openSession()) {
+            session.beginTransaction();
+
+            // reload admin to get clients fully initialized
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
+            clients.clear();
+            clients.addAll(managedAdmin.getClients());
+
+            listVehiclesFromDB.clear();
+            for (Client client : clients) {
+                // force vehicles to load
+                client.getClientVehicles().size();
+                listVehiclesFromDB.addAll(client.getClientVehicles());
+                // force serviceRecords to load for each vehicle
+                for (Vehicle vehicle : client.getClientVehicles()) {
+                    vehicle.getServiceRecords().size();
+                }
+            }
+
+            session.getTransaction().commit();
+        } catch (Exception e) {
+            e.printStackTrace();
+            wrongLabel.setText("Failed to load clients or vehicles");
+        }
     }
 
     /**
@@ -302,12 +350,15 @@ public class ServiceRecordManageController implements DataReceiver {
 
             session.beginTransaction();
 
-            listVehiclesFromDB = session
-                    .createQuery("FROM Vehicle WHERE owner.email = :clientEmail", Vehicle.class)
-                    .setParameter("clientEmail", clientEmail)
-                    .list();
+            Client client = clients.stream()
+                    .filter(c -> c.getEmail().equals(clientEmail))
+                    .findFirst()
+                    .orElse(null);
 
-            vehicles.addAll(listVehiclesFromDB);
+            if (client != null) {
+                vehicles.addAll(client.getClientVehicles());
+                listVehiclesFromDB.addAll(vehicles);
+            }
 
             session.getTransaction().commit();
             session.close();
@@ -373,24 +424,11 @@ public class ServiceRecordManageController implements DataReceiver {
      */
     private ObservableList<ServiceRecord> getServiceRecordsFromDB() {
         ObservableList<ServiceRecord> serviceRecords = observableArrayList();
-
-        try {
-            Session session = DatabaseConfigSession.getSessionFactory().openSession();
-
-            session.beginTransaction();
-
-            List<ServiceRecord> serviceRecordsFromDB = session.createQuery("FROM ServiceRecord ",
-                    ServiceRecord.class).list();
-
-            session.getTransaction().commit();
-            session.close();
-
-            serviceRecords.addAll(serviceRecordsFromDB);
-
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+        for (Client client : clients) {
+            for (Vehicle vehicle : client.getClientVehicles()) {
+                serviceRecords.addAll(vehicle.getServiceRecords());
+            }
         }
-
         return serviceRecords;
     }
 

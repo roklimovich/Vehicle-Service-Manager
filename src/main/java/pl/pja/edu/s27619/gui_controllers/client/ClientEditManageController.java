@@ -127,18 +127,23 @@ public class ClientEditManageController implements DataReceiver {
      * @throws Exception if system could not load the new scene
      */
     private void promoteToVIP() throws Exception {
-        String name = clientNameField.getText();
-        String surname = clientSurnameField.getText();
-        String phoneNumber = clientPhoneNumber.getText();
-        String email = clientEmail.getText();
-        int loyaltyPoints = Integer.parseInt(clientLoyaltyPoints.getText());
-        long id = client.getId();
-
         if (client instanceof BasicClient) {
-            client = new VIPClient(name, surname, phoneNumber, email);
+
+            // Keep loyalty points and vehicles
+            int loyaltyPoints = client.getLoyaltyPoints();
+            List<Vehicle> vehicles = client.getClientVehicles();
+
+            deleteFromDatabase(); // safely remove old client
+
+            // Create new VIP client
+            client = new VIPClient(client.getName(), client.getSurname(),
+                    client.getPhoneNumber(), client.getEmail());
+            client.setAdmin(admin);
             client.setLoyaltyPoints(loyaltyPoints);
-            mergeIntoDatabase();
-            deleteFromDatabase(id);
+            client.getClientVehicles().addAll(vehicles); // keep vehicles
+
+            mergeIntoDatabase(); // safely save new VIP client
+
             Main.changeScene("/manage_page/client_page/client.fxml", admin);
         } else {
             noPromoteLabel.setText("Already VIP client");
@@ -151,14 +156,13 @@ public class ClientEditManageController implements DataReceiver {
      * @throws Exception if system could not load the scene
      */
     public void saveClient() throws Exception {
-
         client.setName(clientNameField.getText());
         client.setSurname(clientSurnameField.getText());
         client.setEmail(clientEmail.getText());
-        client.setLoyaltyPoints(Integer.parseInt(clientLoyaltyPoints.getText()));
         client.setPhoneNumber(clientPhoneNumber.getText());
+        client.setLoyaltyPoints(Integer.parseInt(clientLoyaltyPoints.getText()));
 
-        mergeIntoDatabase();
+        mergeIntoDatabase(); // safe merge
 
         Main.changeScene("/manage_page/client_page/client.fxml", admin);
     }
@@ -168,27 +172,15 @@ public class ClientEditManageController implements DataReceiver {
      * set properly.
      */
     private void mergeIntoDatabase() {
-        Session session = null;
-
-        try {
-            session = DatabaseConfigSession.getSessionFactory().openSession();
-
+        try (Session session = DatabaseConfigSession.getSessionFactory().openSession()) {
             session.beginTransaction();
 
-            session.merge(client);
+            // Merge returns a managed entity
+            client = (Client) session.merge(client);
 
             session.getTransaction().commit();
-
-            session.close();
         } catch (Exception e) {
-            System.out.println(e.getMessage());
-            if (session != null && session.getTransaction().isActive()) {
-                session.getTransaction().rollback();
-            }
-        } finally {
-            if (session != null) {
-                session.close();
-            }
+            e.printStackTrace();
         }
     }
 
@@ -196,35 +188,22 @@ public class ClientEditManageController implements DataReceiver {
      * Method which is needed to delete the client in the system. Automatically delete in the database if chosen
      * client exists.
      */
-    private void deleteFromDatabase(long id) {
-        Session session = null;
-
-        try {
-            session = DatabaseConfigSession.getSessionFactory().openSession();
-
+    private void deleteFromDatabase() {
+        try (Session session = DatabaseConfigSession.getSessionFactory().openSession()) {
             session.beginTransaction();
 
+            Client managedClient = session.find(Client.class, client.getId());
+            if (managedClient != null) {
+                Admin managedAdmin = session.find(Admin.class, admin.getId());
+                managedAdmin.removeClient(managedClient); // orphanRemoval deletes automatically
+            }
 
-            Client clientToRemove = session.createQuery("FROM Client WHERE id = :id", Client.class)
-                    .setParameter("id", id)
-                    .uniqueResult();
-
-            session.remove(clientToRemove);
-
+            session.remove(managedClient);
             session.getTransaction().commit();
-
-            session.close();
+            
         } catch (Exception e) {
-            System.out.println(e.getMessage());
-            if (session != null && session.getTransaction().isActive()) {
-                session.getTransaction().rollback();
-            }
-        } finally {
-            if (session != null) {
-                session.close();
-            }
+            e.printStackTrace();
         }
-
 
     }
 
@@ -236,23 +215,15 @@ public class ClientEditManageController implements DataReceiver {
     private ObservableList<Vehicle> getClientVehiclesFromDB() {
         ObservableList<Vehicle> vehicles = observableArrayList();
 
-        try {
-            Session session = DatabaseConfigSession.getSessionFactory().openSession();
-
+        try (Session session = DatabaseConfigSession.getSessionFactory().openSession()) {
             session.beginTransaction();
 
-            List<Vehicle> clientListFromDB = session.createQuery("FROM Vehicle WHERE owner.id = :clientId",
-                            Vehicle.class)
-                    .setParameter("clientId", client.getId())
-                    .list();
-
-            vehicles.addAll(clientListFromDB);
+            Client managedClient = session.find(Client.class, client.getId());
+            vehicles.addAll(managedClient.getClientVehicles());
 
             session.getTransaction().commit();
-
-            session.close();
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
         }
 
         return vehicles;

@@ -77,13 +77,6 @@ public class ClientManageController implements TableGenerator, DataReceiver {
     @FXML
     private Button editButton;
 
-    @FXML
-    public void initialize() {
-        generateTableView();
-
-        mainClientList = clientsFromDB();
-        clientList.setItems(mainClientList);
-    }
 
     /**
      * Method handle left mouse button when it was clicked and change the state based on clicked button.
@@ -127,37 +120,28 @@ public class ClientManageController implements TableGenerator, DataReceiver {
         String phoneNumber = clientPhoneNumber.getText();
         String email = clientEmail.getText();
 
-        Session session = null;
-
-        try {
-            session = DatabaseConfigSession.getSessionFactory().openSession();
-
+        try (Session session = DatabaseConfigSession.getSessionFactory().openSession()) {
             session.beginTransaction();
+
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
 
             Client client = new BasicClient(name, surname, phoneNumber, email);
 
-            session.persist(client);
-
+            managedAdmin.addClient(client); // cascade persists automatically
 
             session.getTransaction().commit();
 
             mainClientList.add(client);
+
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            e.printStackTrace();
             wrongLabel.setText("Wrong data, try once again");
-            if (session != null && session.getTransaction().isActive()) {
-                session.getTransaction().rollback();
-            }
-        } finally {
-            if (session != null) {
-                session.close();
-            }
         }
 
-        clientNameField.setText("");
-        clientSurnameField.setText("");
-        clientPhoneNumber.setText("");
-        clientEmail.setText("");
+        clientNameField.clear();
+        clientSurnameField.clear();
+        clientPhoneNumber.clear();
+        clientEmail.clear();
 
         clientList.setItems(mainClientList);
     }
@@ -169,32 +153,30 @@ public class ClientManageController implements TableGenerator, DataReceiver {
     private void deleteClient() {
         Client client = clientList.getSelectionModel().getSelectedItem();
 
-        if (client != null) {
-            Session session = DatabaseConfigSession.getSessionFactory().openSession();
+        if (client == null) {
+            wrongLabel.setText("No selected client to delete");
+            return;
+        }
 
-            try {
-                session.beginTransaction();
+        try (Session session = DatabaseConfigSession.getSessionFactory().openSession()) {
+            session.beginTransaction();
 
-                session.remove(client);
+            // Load a managed Admin
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
 
-                session.getTransaction().commit();
+            // Load the client in the current session to ensure it is managed
+            Client managedClient = session.find(Client.class, client.getId());
 
-            } catch (Exception e) {
-                System.out.println(e.getMessage());
-                if (session != null && session.getTransaction().isActive()) {
-                    session.getTransaction().rollback();
-                }
-            } finally {
-                if (session != null) {
-                    session.close();
-                }
-            }
+            managedAdmin.removeClient(managedClient);
+
+            session.getTransaction().commit();
 
             mainClientList.remove(client);
             clientList.setItems(mainClientList);
 
-        } else {
-            wrongLabel.setText("No selected client to delete");
+        } catch (Exception e) {
+            e.printStackTrace();
+            wrongLabel.setText("Failed to delete client");
         }
 
     }
@@ -279,7 +261,9 @@ public class ClientManageController implements TableGenerator, DataReceiver {
 
             session.beginTransaction();
 
-            List<Client> clientListFromDB = session.createQuery("FROM Client", Client.class).list();
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
+
+            List<Client> clientListFromDB = managedAdmin.getClients();
 
             clientList.addAll(clientListFromDB);
 
@@ -307,5 +291,10 @@ public class ClientManageController implements TableGenerator, DataReceiver {
                 admin = (Admin) obj;
             }
         }
+
+        generateTableView();
+
+        mainClientList = clientsFromDB();
+        clientList.setItems(mainClientList);
     }
 }

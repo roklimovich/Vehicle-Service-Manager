@@ -179,10 +179,12 @@ public class HomeController implements DataReceiver {
 
             session.beginTransaction();
 
-            List<ScheduledTask> tasks = session.createQuery("FROM ScheduledTask WHERE scheduledDate = :date",
-                            ScheduledTask.class)
-                    .setParameter("date", LocalDate.now())
-                    .list();
+            Admin managedAdmin = session.find(Admin.class, administrator.getId());
+
+            List<ScheduledTask> tasks = managedAdmin.getMechanics().stream()
+                            .flatMap(mechanic -> mechanic.getScheduledTasks().stream())
+                                    .filter(task -> task.getScheduledDate().equals(LocalDate.now()))
+                                            .toList();
 
             scheduledTasks.addAll(tasks);
 
@@ -244,8 +246,12 @@ public class HomeController implements DataReceiver {
 
                 session.beginTransaction();
 
-                ServiceRecord managedRecord = session.createQuery("FROM ServiceRecord WHERE uniqueId = :id",
-                        ServiceRecord.class).setParameter("id", record.getUniqueId()).uniqueResult();
+                Admin managedAdmin = session.find(Admin.class, administrator.getId());
+
+                ServiceRecord managedRecord = administrator.getAllServiceRecords().stream()
+                                .filter(serviceRecord -> serviceRecord.getUniqueId().equals(record.getUniqueId()))
+                                        .findFirst()
+                                                .orElse(null);
 
                 managedRecord.setServiceRecordStatus(status);
                 session.merge(managedRecord);

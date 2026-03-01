@@ -7,7 +7,6 @@ import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 
 public class DatabaseConfigSession {
 
-
     private static final StandardServiceRegistry REGISTRY;
     private static final SessionFactory SESSION_FACTORY;
 

@@ -67,14 +67,6 @@ public class EnginePageController implements DataReceiver {
 
     public EnginePageController() {}
 
-    @FXML
-    public void initialize() {
-        generateTableViewAndComBoxes();
-
-        mainList = enginesFromDB();
-        engineList.setItems(mainList);
-    }
-
     /**
      * Method handle left mouse button when it was clicked and change the state based on clicked button.
      *
@@ -137,10 +129,9 @@ public class EnginePageController implements DataReceiver {
 
             session.beginTransaction();
 
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
             Engine engine = new Engine(name, engineType, emissionLevel, engineCategory, power);
-
-            session.persist(engine);
-
+            managedAdmin.addEngine(engine);
 
             session.getTransaction().commit();
 
@@ -177,7 +168,10 @@ public class EnginePageController implements DataReceiver {
 
                 session.beginTransaction();
 
-                session.remove(engineToBeDeleted);
+                Admin managedAdmin = session.find(Admin.class, admin.getId());
+                Engine managedEngine = session.find(Engine.class, engineToBeDeleted.getId());
+
+                managedAdmin.removeEngine(managedEngine);
 
                 session.getTransaction().commit();
             } catch (Exception e) {
@@ -243,6 +237,11 @@ public class EnginePageController implements DataReceiver {
         for (Object obj : objects) {
             admin = (Admin) obj;
         }
+
+        generateTableViewAndComBoxes();
+
+        mainList = enginesFromDB();
+        engineList.setItems(mainList);
     }
 
     /**
@@ -258,9 +257,10 @@ public class EnginePageController implements DataReceiver {
 
             session.beginTransaction();
 
-            List<Engine> enginesFromDB = session.createQuery("FROM Engine", Engine.class).list();
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
+            managedAdmin.getEngines().size();
 
-            engineList.addAll(enginesFromDB);
+            engineList.addAll(managedAdmin.getEngines());
 
             session.getTransaction().commit();
             session.close();

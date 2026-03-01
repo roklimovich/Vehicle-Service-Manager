@@ -202,7 +202,9 @@ public class VehicleEditManageController implements DataReceiver {
 
             session.beginTransaction();
 
-            clientsFromDB = session.createQuery("FROM Client ", Client.class).list();
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
+
+            clientsFromDB = managedAdmin.getClients();
 
             session.getTransaction().commit();
             session.close();
@@ -231,8 +233,10 @@ public class VehicleEditManageController implements DataReceiver {
             Session session = DatabaseConfigSession.getSessionFactory().openSession();
 
             session.beginTransaction();
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
+            managedAdmin.getEngines().size();
 
-            enginesFromDB = session.createQuery("FROM Engine ", Engine.class).list();
+            enginesFromDB.addAll(managedAdmin.getEngines());
 
             session.getTransaction().commit();
             session.close();

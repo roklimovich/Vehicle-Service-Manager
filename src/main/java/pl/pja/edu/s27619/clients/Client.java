@@ -1,6 +1,7 @@
 package pl.pja.edu.s27619.clients;
 
 import jakarta.persistence.*;
+import pl.pja.edu.s27619.administration.Admin;
 import pl.pja.edu.s27619.exceptions.CheckDataException;
 import pl.pja.edu.s27619.vehicle.Vehicle;
 
@@ -37,6 +38,10 @@ public abstract class Client {
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Vehicle> clientVehicles;
+
+    @ManyToOne
+    @JoinColumn(name = "admin_id")
+    private Admin admin;
 
     public Client() {} // for hibernate purpose
 
@@ -191,6 +196,14 @@ public abstract class Client {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Admin getAdmin() {
+        return admin;
+    }
+
+    public void setAdmin(Admin admin) {
+        this.admin = admin;
     }
 
     @Override

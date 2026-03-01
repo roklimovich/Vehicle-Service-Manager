@@ -60,12 +60,6 @@ public class MechanicManageController implements DataReceiver, TableGenerator {
     private TextField emailField;
     private Admin admin;
 
-    @FXML
-    public void initialize() {
-        mainList = mechanicsFromDB();
-        mechanicList.setItems(mainList);
-    }
-
     /**
      * Method get all mechanics which is registered into the database and set them into list.
      *
@@ -79,7 +73,9 @@ public class MechanicManageController implements DataReceiver, TableGenerator {
 
             session.beginTransaction();
 
-            List<Mechanic> mechanicsFromDB = session.createQuery("FROM Mechanic ", Mechanic.class).list();
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
+
+            List<Mechanic> mechanicsFromDB = managedAdmin.getMechanics();
 
             mechanics.addAll(mechanicsFromDB);
 
@@ -157,8 +153,10 @@ public class MechanicManageController implements DataReceiver, TableGenerator {
             try {
 
                 session.beginTransaction();
-
+                Admin managedAdmin = session.find(Admin.class, admin.getId());
                 Mechanic managedMechanic = session.find(Mechanic.class, mechanic.getId());
+
+                managedAdmin.removeMechanic(managedMechanic);
 
                 session.remove(managedMechanic);
 
@@ -178,6 +176,7 @@ public class MechanicManageController implements DataReceiver, TableGenerator {
 
             resetFields();
             mainList.remove(mechanic);
+            System.out.println(mainList);
             mechanicList.setItems(mainList);
 
         } else {
@@ -237,8 +236,10 @@ public class MechanicManageController implements DataReceiver, TableGenerator {
 
             session.beginTransaction();
 
+            Admin managedAdmin = session.find(Admin.class, admin.getId());
             Mechanic mechanic = new Mechanic(login, password, name, surname, email);
 
+            managedAdmin.addMechanic(mechanic);
             session.persist(mechanic);
             session.getTransaction().commit();
 
@@ -278,6 +279,10 @@ public class MechanicManageController implements DataReceiver, TableGenerator {
      */
     @Override
     public void generateTableView() {
+
+        mainList = mechanicsFromDB();
+        mechanicList.setItems(mainList);
+
         for (TableColumn<?, ?> column : mechanicList.getColumns()) {
             column.setResizable(false);
         }

@@ -1,6 +1,7 @@
 package pl.pja.edu.s27619.vehicle.component;
 
 import jakarta.persistence.*;
+import pl.pja.edu.s27619.administration.Admin;
 import pl.pja.edu.s27619.exceptions.CheckDataException;
 import pl.pja.edu.s27619.vehicle.Vehicle;
 
@@ -35,6 +36,10 @@ public class Engine implements Serializable {
 
     @OneToMany(mappedBy = "engine")
     private List<Vehicle> vehicleList;
+
+    @ManyToOne
+    @JoinColumn(name = "admin_id")
+    private Admin admin;
 
     // for Hibernate purpose
     public Engine() {}
@@ -144,6 +149,10 @@ public class Engine implements Serializable {
 
     public Long getId() {
         return id;
+    }
+
+    public void setAdmin(Admin admin) {
+        this.admin = admin;
     }
 
     @Override
