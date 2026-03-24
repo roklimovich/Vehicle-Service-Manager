@@ -114,7 +114,3 @@ mvn test
 ```
 
 ---
-
-## Academic Context
-
-This project was developed as part of the **MAS (Modelling and Analysis of Information Systems)** course at **PJATK — Polish-Japanese Academy of Information Technology**.
